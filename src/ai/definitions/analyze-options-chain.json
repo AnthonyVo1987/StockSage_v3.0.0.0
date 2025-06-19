@@ -1,0 +1,66 @@
+
+{
+  "definitionType": "llm-prompt",
+  "promptName": "analyzeOptionsChainPrompt",
+  "description": "Analyzes options chain data to identify significant Call/Put Walls based on noteworthy OI and/or Volume concentrations.",
+  "modelId": "googleai/gemini-2.5-flash-lite-preview-06-17",
+  "safetySettings": [
+    { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH" },
+    { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH" },
+    { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH" },
+    { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH" }
+  ],
+  "thinkingBudget": -1,
+  "outputSchemaHint": "AiOptionsAnalysisOutputSchema from '@/ai/schemas/ai-options-analysis-schemas'",
+  "chainOfThought": [
+    {
+      "role": "SystemSetup",
+      "parts": [
+        {
+          "text": "You are an expert options market analyst."
+        }
+      ]
+    },
+    {
+      "role": "CoreTask",
+      "parts": [
+        {
+          "text": "Your task is to identify significant Call and Put \"Walls\" from the provided options chain data for the stock: {{{ticker}}}."
+        }
+      ]
+    },
+    {
+      "role": "DataContext",
+      "parts": [
+        {
+          "text": "The current underlying price is ${{{currentUnderlyingPrice}}} for context.\nThe options chain data is provided as a JSON string: {{{optionsChainJson}}}\nThis JSON string represents an 'OptionsChainData' object with a 'contracts' array. Each element in 'contracts' is an 'OptionsTableRow' having 'strike', 'call' (StreamlinedOptionContract), and 'put' (StreamlinedOptionContract) properties. Each contract detail (call/put) includes 'open_interest' and 'volume'."
+        }
+      ]
+    },
+    {
+      "role": "AnalysisCriteria",
+      "parts": [
+        {
+          "text": "Identify strikes that show potentially significant Open Interest (OI) that *might* act as support/resistance. Consider OI levels that are elevated compared to their immediate surroundings or that appear noteworthy within the context of the overall options chain for {{{ticker}}}. High volume at these strikes can be a confirming factor but is not strictly required if OI itself is notable. The goal is to highlight areas of interest, not just extreme concentrations. You should make every reasonable effort to find candidates."
+        }
+      ]
+    },
+    {
+      "role": "OutputRequirements",
+      "parts": [
+        {
+          "text": "Output Requirements:\n- Identify AT LEAST 1 Call Wall and AT LEAST 1 Put Wall if any reasonable candidates exist based on the criteria. Select a maximum of 3 for each type.\n- If multiple candidates exist, order them by your perceived significance (e.g., highest OI, most impactful cluster, significant volume confirmation), even if that significance is moderate.\n- If there are strikes with OI that stands out even moderately from its neighbors, consider including them.\n- If, after making a diligent effort, you absolutely cannot identify any discernible OI/Volume concentrations that could reasonably be considered a wall (even a minor one), then (and only then) return an empty array for that specific type (e.g., `callWalls: []`).\n- For each selected wall, populate the output JSON:\n    - `callWalls`: Array of wall objects: `{strike: number, openInterest: number, volume?: number, type: 'call'}`. Include `volume` if it's a key factor in your identification or particularly noteworthy.\n    - `putWalls`: Array of wall objects: `{strike: number, openInterest: number, volume?: number, type: 'put'}`. Include `volume` if it's a key factor in your identification or particularly noteworthy."
+        }
+      ]
+    },
+    {
+      "role": "FinalInstruction",
+      "parts": [
+        {
+          "text": "Strictly adhere to the output schema.\nIf optionsChainJson is empty or clearly insufficient (e.g., very few contracts or all zero OI/volume), return empty walls."
+        }
+      ]
+    }
+  ]
+}
+
